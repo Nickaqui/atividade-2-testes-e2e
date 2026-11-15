@@ -164,21 +164,46 @@ Com as portas do arquivo de exemplo:
 
 O banco aplica os scripts de `database/` na primeira inicialização de um diretório de dados vazio e mantém os dados no volume `aula4_database_data`. Para encerrar a aplicação, execute `docker compose down`.
 
-## Frontend da atividade de testes E2E
+## Frontend da atividade de testes E2E (`atividade/`)
 
 A interface em `atividade/` carrega a lista de alunos ao abrir a página. O formulário envia o RA e o nome para `POST /api/students` e, após um cadastro bem-sucedido, limpa os campos e atualiza a lista por `GET /api/students`, sem recarregar a página. A tela também apresenta validações e mensagens de sucesso, erro e lista vazia.
 
-Para iniciar apenas esse frontend e suas dependências, execute na raiz:
+### Executar a suíte E2E da atividade
+
+Na raiz do projeto, instale as dependências e o navegador Chromium:
+
+```powershell
+npm ci
+npx playwright install chromium
+```
+
+Em seguida, execute os testes da atividade:
+
+```powershell
+npm run test:atividade
+```
+
+(ou `npm test`)
+
+Esse comando inicia um ambiente Docker exclusivo (`compose.atividade.e2e.yml`, projeto `aula4-atividade-e2e`, banco `aula4_atividade_e2e` em `tmpfs` e porta `18081`), restaura e reaplica o seed antes de cada teste (`e2e-atividade/support.ts`), executa os 15 cenários de `e2e-atividade/atividade.spec.ts` com `playwright.atividade.config.ts` e encerra os contêineres ao final.
+
+| Comando | Finalidade |
+| --- | --- |
+| `npm test` / `npm run test:atividade` | Inicia o ambiente isolado da atividade, executa os testes e encerra os contêineres. |
+| `npm run test:atividade -- --headed` | Executa a suíte da atividade com o navegador visível. |
+| `npm run test:atividade:list` | Lista os cenários da atividade sem iniciar o Docker. |
+| `npm run test:atividade:typecheck` | Verifica os tipos TypeScript de `e2e-atividade/` e `playwright.atividade.config.ts`. |
+| `npm run test:atividade:report` | Abre o relatório HTML da última execução. |
+
+Para iniciar apenas esse frontend manualmente para exploração, execute na raiz:
 
 ```powershell
 docker compose up --build -d atividade
 ```
 
-Acesse http://localhost:8081, conforme a variável `ATIVIDADE_PORT_HOST` do `.env`. O Nginx encaminha as chamadas `/api` ao servidor. Os dois frontends compartilham a mesma API e o mesmo banco no ambiente manual.
+Acesse http://localhost:8081, conforme a variável `ATIVIDADE_PORT_HOST` do `.env`. O Nginx encaminha as chamadas `/api` ao servidor.
 
-A proposta é implementar testes para listagem inicial, cadastro com atualização da tabela, persistência após recarregar a página, campos inválidos, RA duplicado e falhas da API. A página oferece labels acessíveis e atributos `data-testid` para localizar os elementos.
-
-A suíte existente em `e2e/` e o ambiente `compose.e2e.yml` continuam destinados ao Laboratório REST. Para testar a nova interface, prepare uma configuração e um ambiente com banco isolado para a atividade. Consulte [atividade/README.md](atividade/README.md) para os comportamentos esperados e os seletores disponíveis.
+A suíte existente em `e2e/` e o ambiente `compose.e2e.yml` continuam destinados ao Laboratório REST (`npm run test:e2e`). Consulte [atividade/README.md](atividade/README.md) para detalhes de todos os cenários cobertos.
 
 ## Desenvolvimento da API
 

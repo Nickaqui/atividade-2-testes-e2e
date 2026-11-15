@@ -1,34 +1,70 @@
-# Atividade: testes e2e do cadastro de alunos
+# Atividade: testes E2E do cadastro de alunos
 
-Frontend em HTML, CSS e JavaScript, sem dependências. Utiliza o mesmo servidor e banco do laboratório.
+Frontend em HTML, CSS e JavaScript, sem dependências, localizado em `atividade/`. Utiliza a API Express em `server/` e o banco PostgreSQL em `database/`.
 
-## Executar
+## Executar os testes E2E da atividade
+
+Requisitos:
+
+- Node.js 24 e npm
+- Docker em execução com suporte a `docker compose up --wait`
+- Porta local `18081` disponível
+
+Na **raiz do projeto**, instale as dependências e o navegador Chromium:
+
+```powershell
+npm ci
+npx playwright install chromium
+```
+
+Execute a suíte E2E da atividade:
+
+```powershell
+npm run test:atividade
+```
+
+(ou simplesmente `npm test`)
+
+O script `e2e-atividade/run.cjs`:
+
+1. Remove contêineres remanescentes do projeto isolado `aula4-atividade-e2e`.
+2. Constrói e inicia o banco exclusivo (`aula4_atividade_e2e` em `tmpfs`), a API (`server`) e o frontend (`atividade` em `http://127.0.0.1:18081`) usando `compose.atividade.e2e.yml`.
+3. Aguarda os healthchecks do banco, da API e do Nginx.
+4. Antes de cada teste, restaura o banco executando `TRUNCATE` com `RESTART IDENTITY CASCADE` e reaplica `database/seed.sql` (garantindo independência total entre os cenários e preservando intacto o banco da demonstração manual).
+5. Executa os 15 testes da suíte (`e2e-atividade/atividade.spec.ts`) em sequência no Chromium (`playwright.atividade.config.ts`).
+6. Salva os logs em `e2e-artifacts/compose-atividade.log` e encerra os contêineres.
+
+### Comandos disponíveis
+
+| Comando | Finalidade |
+| --- | --- |
+| `npm test` / `npm run test:atividade` | Inicia o ambiente Docker isolado, executa a suíte da atividade e encerra os contêineres. |
+| `npm run test:atividade -- --headed` | Executa os testes da atividade com o navegador visível. |
+| `npm run test:atividade:list` | Lista os cenários da atividade sem iniciar o Docker. |
+| `npm run test:atividade:typecheck` | Verifica os tipos TypeScript dos testes e da configuração da atividade. |
+| `npm run test:atividade:report` | Abre o relatório HTML da última execução do Playwright. |
+
+## Cenários cobertos (`e2e-atividade/atividade.spec.ts`)
+
+| Cenário | Verificação |
+| --- | --- |
+| **Listagem inicial** | Verifica que os 3 alunos do seed (`258001`, `258002`, `258003`) aparecem na tabela ao abrir a página. |
+| **Cadastro válido** | Preenche RA e Nome válidos, envia o formulário e verifica `201 Created` e a mensagem `"Aluno cadastrado com sucesso."`. |
+| **Atualização da lista** | Confirma que o aluno recém-cadastrado aparece na tabela automaticamente sem recarregar a página. |
+| **Limpeza do formulário** | Confirma que os campos `RA` e `Nome` ficam vazios após o cadastro bem-sucedido. |
+| **Persistência** | Recarrega a página após um cadastro válido e verifica que o aluno permanece listado na tabela. |
+| **Campos obrigatórios** | Verifica que o formulário impede o envio quando `RA` e/ou `Nome` estão vazios (sem disparar `POST /api/students`). |
+| **RA inválido** | Verifica a rejeição de valores negativos (`-1`), zero (`0`), decimais (`1.5`) e maiores que `2147483647` (`2147483648`). |
+| **Nome inválido** | Verifica a rejeição de nomes com menos de 3 caracteres úteis, desconsiderando espaços nas extremidades (`"Ab"`, `"  ab  "`, `"   "`). |
+| **RA duplicado** | Verifica que o cadastro com RA existente retorna `409`, exibe a mensagem de erro na tela e mantém `RA` e `Nome` preenchidos. |
+| **Lista vazia** | Limpa os registros no banco isolado de testes, recarrega a página e verifica a exibição de `"Nenhum aluno cadastrado."`. |
+
+## Executar manualmente a interface da atividade
 
 Na raiz do projeto:
 
-```sh
+```powershell
 docker compose up --build -d atividade
 ```
 
-Acesse http://localhost:8081. O Compose também inicia o servidor e o banco. Para mudar a porta, defina `ATIVIDADE_PORT_HOST` no `.env`.
-
-Abra a página pelo Compose para que o Nginx encaminhe `/api` ao servidor.
-
-## Comportamento esperado
-
-- Ao abrir a página, a lista é carregada por `GET /api/students`.
-- O formulário envia `POST /api/students` com `{ ra: number, name: string }`.
-- O RA deve ser um inteiro entre 1 e 2147483647. O nome deve ter de 3 a 100 caracteres, desconsiderando espaços nas extremidades.
-- Após cadastrar, o formulário é limpo e a lista é consultada novamente, sem recarregar a página.
-- RA duplicado exibe a mensagem retornada pela API e mantém os campos preenchidos.
-- A tela informa carregamento, lista vazia e falhas de cadastro ou listagem.
-
-## Proposta de testes
-
-Implemente testes para listagem inicial, cadastro com atualização da tabela, persistência após recarregar a página, campos obrigatórios, limites dos campos, RA duplicado e falhas da API.
-
-Prefira seletores acessíveis como `getByLabel('RA')`, `getByLabel('Nome')` e `getByRole('button', { name: 'Cadastrar aluno' })`. Também estão disponíveis os `data-testid`: `student-form`, `ra`, `name`, `submit`, `form-message`, `list-message`, `students-table`, `students-list` e `student-row`.
-
-As mensagens possuem `data-state` (`loading`, `success` ou `error`). A seção da lista expõe `aria-busy` durante a consulta.
-
-Configure a URL base dos testes para esta aplicação. A suíte existente em `e2e` continua apontando para o laboratório REST. Utilize um banco isolado para os testes, pois os cadastros são persistidos no banco compartilhado com o laboratório.
+Acesse http://localhost:8081 (conforme `ATIVIDADE_PORT_HOST` no `.env`).
